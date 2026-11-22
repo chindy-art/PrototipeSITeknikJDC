@@ -173,6 +173,14 @@ const staffList = [
   {id:'S7', nama:'Wahyu Saputra', jabatan:'Staff Teknik'},
 ];
 
+/* Karyawan Departemen Teknik di luar staff lapangan (manajer, supervisor, admin).
+   Dipisah dari staffList agar tidak ikut jadwal shift & penugasan WO. */
+const karyawanTeknikLain = [
+  {id:'K1', nama:'Nono Suryono, S.T.', jabatan:'Manajer Teknik'},
+  {id:'K2', nama:'Kindy',              jabatan:'Supervisor Teknik'},
+  {id:'K3', nama:'Alvin Habibi',       jabatan:'Admin Teknik'},
+];
+
 const vendorList = [
   {id:'V1', nama:'Smarash', bidang:'Cleaning Service', jadwal:'Setiap hari', kontrak:'Aktif'},
   {id:'V2', nama:'PT. HES', bidang:'Pertamanan', jadwal:'Setiap hari', kontrak:'Aktif'},
@@ -687,10 +695,10 @@ const notifSeed = [
 
 /* ── Data Akun Pengguna (dibuat oleh Admin Teknik — proses usulan 1.1.1) ── */
 let userAccounts = [
-  {id:'U1', nama:'Nono Suryono, S.T.', username:'nono.suryono', password:'Manajer2026!',    peran:'manajer',    refId:null, status:'Aktif'},
-  {id:'U2', nama:'Kindy',              username:'kindy',        password:'Supervisor2026!', peran:'supervisor', refId:null, status:'Aktif'},
+  {id:'U1', nama:'Nono Suryono, S.T.', username:'nono.suryono', password:'Manajer2026!',    peran:'manajer',    refId:'K1', status:'Aktif'},
+  {id:'U2', nama:'Kindy',              username:'kindy',        password:'Supervisor2026!', peran:'supervisor', refId:'K2', status:'Aktif'},
   {id:'U3', nama:'Heriansyah',         username:'heriansyah',   password:'Staff2026!',      peran:'staff',      refId:'S1', status:'Aktif'},
-  {id:'U4', nama:'Alvin Habibi',       username:'alvin.habibi', password:'Admin2026!',      peran:'admin',      refId:null, status:'Aktif'},
+  {id:'U4', nama:'Alvin Habibi',       username:'alvin.habibi', password:'Admin2026!',      peran:'admin',      refId:'K3', status:'Aktif'},
   {id:'U5', nama:'PT. Jaya Kencana',   username:'jayakencana',  password:'Vendor2026!',     peran:'vendor',     refId:'V4', status:'Aktif'},
 ];
 function akunUntuk(refId){ return userAccounts.find(a=>a.refId===refId) || null; }
@@ -3999,11 +4007,55 @@ function akunCell(refId, tipe, id){
   return a ? `<span class="font-mono" style="font-size:.76rem;">${a.username}</span> ${badge(a.status)}`
            : `<button class="btn btn-outline btn-sm" onclick="openAkunModal('${tipe}','${id}')"><i data-lucide="user-plus"></i> Buat Akun</button>`;
 }
+/* ── Data Karyawan Departemen Teknik (semua jabatan) ── */
+const JABATAN_TEKNIK = ['Manajer Teknik','Supervisor Teknik','Admin Teknik','Koordinator Teknik','Staff Teknik'];
+const PERAN_KARYAWAN = ['manajer','supervisor','admin','staff'];   // peran akun yang bisa dipilih untuk karyawan internal
+function peranDefault(jabatan){
+  return {'Manajer Teknik':'manajer','Supervisor Teknik':'supervisor','Admin Teknik':'admin'}[jabatan] || 'staff';
+}
+function semuaKaryawanTeknik(){
+  const urut = j => { const i = JABATAN_TEKNIK.indexOf(j); return i<0 ? JABATAN_TEKNIK.length : i; };
+  return [...karyawanTeknikLain, ...staffList].sort((a,b)=> urut(a.jabatan)-urut(b.jabatan));
+}
+function cariKaryawan(id){ return semuaKaryawanTeknik().find(k=>k.id===id) || null; }
+function peranOptions(selected){
+  return PERAN_KARYAWAN.map(p=>`<option value="${p}" ${p===selected?'selected':''}>${ROLES[p].label} — ${ROLES[p].desc}</option>`).join('');
+}
+function akunKaryawanCell(k){
+  const a = akunUntuk(k.id);
+  return a ? `<span class="font-mono" style="font-size:.76rem;">${a.username}</span> ${badge(a.status)}`
+           : `<button class="btn btn-outline btn-sm" onclick="openAkunKaryawanModal('${k.id}')"><i data-lucide="user-plus"></i> Buat Akun</button>`;
+}
+function peranAkunCell(k){
+  const a = akunUntuk(k.id);
+  return a ? `<span class="badge badge-info">${ROLES[a.peran].label}</span>` : `<span style="font-size:.75rem;color:var(--slate);">Belum ada akun</span>`;
+}
 function viewDataStaff(){
-  return `<div class="card">${cardHead('Data Staff Teknik', `<button class="btn btn-brand btn-sm" onclick="openStaffModal()"><i data-lucide="plus"></i> Tambah Staff</button>`)}
-    <p style="font-size:.75rem;color:var(--slate);margin:-.6rem 0 1rem;">Setiap staff memerlukan akun pengguna (peran Staff Teknik) agar dapat masuk ke sistem.</p>
-    ${table(['ID','Nama','Jabatan','Akun Pengguna'], staffList.map(s=>`<tr><td class="font-mono">${s.id}</td><td>${s.nama}</td><td>${s.jabatan}</td><td>${akunCell(s.id,'staff',s.id)}</td></tr>`))}
+  const list = semuaKaryawanTeknik();
+  const jmlAkun = list.filter(k=>akunUntuk(k.id)).length;
+  return `<div class="card">${cardHead('Data Karyawan Departemen Teknik', `<button class="btn btn-brand btn-sm" onclick="openStaffModal()"><i data-lucide="plus"></i> Tambah Karyawan</button>`)}
+    <p style="font-size:.75rem;color:var(--slate);margin:-.6rem 0 1rem;">Daftar seluruh karyawan Departemen Teknik dari semua jabatan (${list.length} orang, ${jmlAkun} sudah memiliki akun). Saat membuat akun, Admin Teknik memilih peran akun yang menentukan menu dan hak akses pengguna di sistem.</p>
+    ${table(['ID','Nama','Jabatan','Peran Akun','Akun Pengguna'], list.map(k=>`<tr><td class="font-mono">${k.id}</td><td>${k.nama}</td><td>${k.jabatan}</td><td>${peranAkunCell(k)}</td><td>${akunKaryawanCell(k)}</td></tr>`))}
   </div>`;
+}
+function peranField(id, selected){
+  return `<div class="field" style="margin-top:.8rem;"><label>Peran Akun (Hak Akses) <span style="color:var(--danger);">*wajib</span></label>
+    <select id="${id}">${peranOptions(selected)}</select>
+    <div style="font-size:.7rem;color:var(--slate);margin-top:.3rem;">Menentukan akun ini masuk sebagai siapa di sistem.</div></div>`;
+}
+function openAkunKaryawanModal(id){
+  const k = cariKaryawan(id); if(!k) return;
+  openModal('Buat Akun Pengguna — '+k.nama, `<p style="font-size:.78rem;color:var(--slate);margin-top:0;">Jabatan: <strong>${k.jabatan}</strong></p>
+    ${peranField('f-ak-peran', peranDefault(k.jabatan))}
+    ${akunFields('f-ak', k.nama.toLowerCase().replace(/,.*$/,'').replace(/[^a-z0-9]+/g,'.').replace(/^\.|\.$/g,''))}`,
+    `<button class="btn btn-brand" onclick="submitAkunKaryawan('${id}')"><i data-lucide="check"></i> Buat Akun</button>`);
+}
+function submitAkunKaryawan(id){
+  const k = cariKaryawan(id); if(!k) return;
+  const peran = document.getElementById('f-ak-peran').value;
+  const v = validasiAkun('f-ak'); if(!v) return;
+  buatAkun(k.nama, v.u, v.p, peran, k.id);
+  closeModal(); toast('Akun '+ROLES[peran].label+' berhasil dibuat'); renderView();
 }
 function akunFields(prefix, defUser){
   return `<div style="border-top:1px solid var(--border);margin-top:.9rem;padding-top:.8rem;">
@@ -4037,22 +4089,31 @@ function submitAkun(tipe, id){
   closeModal(); toast('Akun pengguna berhasil dibuat'); renderView();
 }
 function openStaffModal(){
-  openModal('Tambah Data Staff', `
-    <div class="field" style="margin-bottom:.8rem;"><label>Nama Lengkap</label><input id="f-s-nama" placeholder="Nama staff"/></div>
-    <div class="field"><label>Jabatan</label><input id="f-s-jabatan" placeholder="Staff Teknik" value="Staff Teknik"/></div>
+  openModal('Tambah Data Karyawan Teknik', `
+    <div class="field" style="margin-bottom:.8rem;"><label>Nama Lengkap</label><input id="f-s-nama" placeholder="Nama karyawan"/></div>
+    <div class="field"><label>Jabatan</label><select id="f-s-jabatan" onchange="document.getElementById('f-s-peran').value=peranDefault(this.value)">${JABATAN_TEKNIK.map(j=>`<option ${j==='Staff Teknik'?'selected':''}>${j}</option>`).join('')}</select></div>
+    ${peranField('f-s-peran', 'staff')}
     ${akunFields('f-s')}`,
     `<button class="btn btn-brand" onclick="submitStaff()"><i data-lucide="check"></i> Simpan</button>`);
 }
 function submitStaff(){
   const n = (document.getElementById('f-s-nama').value||'').trim();
   const j = document.getElementById('f-s-jabatan').value || 'Staff Teknik';
-  if(!n){ toast('Nama staff wajib diisi','alert-triangle'); return; }
+  const peran = document.getElementById('f-s-peran').value || 'staff';
+  if(!n){ toast('Nama karyawan wajib diisi','alert-triangle'); return; }
   const v = validasiAkun('f-s'); if(!v) return;
-  const sid = 'S'+(staffList.length+1);
-  staffList.push({id:sid, nama:n, jabatan:j});
-  addLog(`Menambahkan data staff baru: ${n}`);
-  buatAkun(n, v.u, v.p, 'staff', sid);
-  closeModal(); toast('Data staff tersimpan'); renderView();
+  let id;
+  if(peran==='staff'){
+    // Karyawan berperan Staff Teknik masuk ke daftar staff lapangan (ikut jadwal shift & penugasan)
+    id = 'S'+(staffList.length+1);
+    staffList.push({id, nama:n, jabatan:j});
+  } else {
+    id = 'K'+(karyawanTeknikLain.length+1);
+    karyawanTeknikLain.push({id, nama:n, jabatan:j});
+  }
+  addLog(`Menambahkan data karyawan teknik baru: ${n} (${j})`);
+  buatAkun(n, v.u, v.p, peran, id);
+  closeModal(); toast('Data karyawan & akun '+ROLES[peran].label+' tersimpan'); renderView();
 }
 function viewDataVendor(){
   return `<div class="card">${cardHead('Data Vendor', `<button class="btn btn-brand btn-sm" onclick="openVendorModal()"><i data-lucide="plus"></i> Tambah Vendor</button>`)}
